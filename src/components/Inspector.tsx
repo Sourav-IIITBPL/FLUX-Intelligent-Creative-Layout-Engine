@@ -9,12 +9,11 @@ export function Inspector() {
   const selectedId = useStore(state => state.selectedElementId);
   const showConstraints = useStore(state => state.showConstraints);
   const toggleConstraints = useStore(state => state.toggleConstraints);
+  const updateElement = useStore(state => state.updateElement);
 
   if (!result) return <div className="p-4 text-zinc-500 text-sm">No layout generated.</div>;
 
   const { score, metrics, warnings, collisions, decisions } = result;
-
-  const getMetricIcon = (pass: boolean) => pass ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <XCircle className="w-4 h-4 text-red-500" />;
 
   const selectedElement = selectedId ? result.elements.find(e => e.id === selectedId) : null;
   const elementDecisions = selectedId ? decisions.filter(d => d.elementId === selectedId) : [];
@@ -91,6 +90,28 @@ export function Inspector() {
             </div>
           </div>
 
+          {/* Properties editor */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-zinc-400">Visibility</span>
+              <button 
+                onClick={() => updateElement(selectedElement.id, { hidden: !selectedElement.hidden })}
+                className="text-xs bg-zinc-800 hover:bg-zinc-700 px-2 py-1 rounded"
+              >
+                {selectedElement.hidden ? 'Show' : 'Hide'}
+              </button>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-zinc-400">Lock State</span>
+              <button 
+                onClick={() => updateElement(selectedElement.id, { locked: !selectedElement.locked })}
+                className={cn("text-xs px-2 py-1 rounded", selectedElement.locked ? "bg-indigo-500/20 text-indigo-300" : "bg-zinc-800 hover:bg-zinc-700")}
+              >
+                {selectedElement.locked ? 'Locked' : 'Unlocked'}
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="bg-zinc-900 p-2 rounded border border-zinc-800">
               <span className="text-zinc-500 block text-[10px] uppercase mb-0.5">Dimensions</span>
@@ -106,7 +127,7 @@ export function Inspector() {
             </div>
             <div className="bg-zinc-900 p-2 rounded border border-zinc-800">
               <span className="text-zinc-500 block text-[10px] uppercase mb-0.5">Behaviors</span>
-              <span className="text-xs capitalize">{selectedElement.behavior.join(', ')}</span>
+              <span className="text-[10px] capitalize leading-tight block">{selectedElement.behavior.join(', ')}</span>
             </div>
           </div>
 
