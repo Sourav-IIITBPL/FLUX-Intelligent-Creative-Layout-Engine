@@ -1,175 +1,241 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../store/store';
-import { LayoutDecision } from '../engine';
+import { CheckCircle2, XCircle, AlertTriangle, Info, Eye, EyeOff, Lock, Unlock, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { CheckCircle2, XCircle, AlertTriangle, Info, ShieldAlert, FileWarning, EyeOff } from 'lucide-react';
 
 export function Inspector() {
-  const result = useStore(state => state.currentResult);
-  const selectedId = useStore(state => state.selectedElementId);
-  const showConstraints = useStore(state => state.showConstraints);
-  const toggleConstraints = useStore(state => state.toggleConstraints);
-  const updateElement = useStore(state => state.updateElement);
+  const result        = useStore(s => s.currentResult);
+  const selectedId    = useStore(s => s.selectedElementId);
+  const selectElement = useStore(s => s.selectElement);
+  const updateElement = useStore(s => s.updateElement);
+  const showConstraints = useStore(s => s.showConstraints);
+  const showSafeZone    = useStore(s => s.showSafeZone);
+  const showFocalPoint  = useStore(s => s.showFocalPoint);
+  const showBoundingBoxes = useStore(s => s.showBoundingBoxes);
+  const showInteractionZones = useStore(s => s.showInteractionZones);
+  const toggleConstraints = useStore(s => s.toggleConstraints);
+  const toggleSafeZone    = useStore(s => s.toggleSafeZone);
+  const toggleFocalPoint  = useStore(s => s.toggleFocalPoint);
+  const toggleBoundingBoxes = useStore(s => s.toggleBoundingBoxes);
+  const toggleInteractionZones = useStore(s => s.toggleInteractionZones);
 
-  if (!result) return <div className="p-4 text-zinc-500 text-sm">No layout generated.</div>;
+  if (!result) return <div className="p-4 text-zinc-500 text-xs">No layout result.</div>;
 
   const { score, metrics, warnings, collisions, decisions } = result;
-
   const selectedElement = selectedId ? result.elements.find(e => e.id === selectedId) : null;
   const elementDecisions = selectedId ? decisions.filter(d => d.elementId === selectedId) : [];
 
   return (
-    <div className="flex flex-col h-full divide-y divide-zinc-800">
-      
-      {/* Global Health */}
-      {!selectedId && (
+    <div className="flex flex-col divide-y divide-zinc-800/60">
+
+      {/* Global health */}
+      {!selectedElement && (
         <>
-          <div className="p-5 flex flex-col gap-4">
+          <div className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-300">LAYOUT HEALTH</h3>
-              <div className={cn(
-                "text-2xl font-bold font-mono",
-                score >= 90 ? "text-emerald-400" : score >= 70 ? "text-yellow-400" : "text-red-400"
-              )}>
-                {score} <span className="text-zinc-600 text-sm">/ 100</span>
-              </div>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Layout Health</span>
+              <span className={cn('text-xl font-bold font-mono', score >= 90 ? 'text-emerald-400' : score >= 70 ? 'text-yellow-400' : 'text-red-400')}>
+                {score}<span className="text-zinc-600 text-sm"> /100</span>
+              </span>
             </div>
 
-            <div className="space-y-2.5 text-sm">
-              <MetricRow pass={collisions.length === 0} label="No collisions" />
-              <MetricRow pass={metrics.ctaVisible} label="CTA visible" />
-              <MetricRow pass={metrics.productFocalPointPreserved} label="Focal point preserved" />
-              <MetricRow pass={metrics.safeZoneCompliant} label="Safe zone compliant" />
-              <MetricRow pass={metrics.textReadabilityOk} label="Text readability" />
-              <MetricRow pass={metrics.interactiveTargetSizeOk} label="Interactive target size" />
+            {/* Metrics */}
+            <div className="space-y-1.5">
+              <Metric ok={collisions.length === 0}    label="No collisions" />
+              <Metric ok={metrics.ctaVisible}          label="CTA visible" />
+              <Metric ok={metrics.productFocalPointPreserved} label="Focal point preserved" />
+              <Metric ok={metrics.safeZoneCompliant}   label="Safe zone compliant" />
+              <Metric ok={metrics.textReadabilityOk}   label="Text readability" />
+              <Metric ok={metrics.interactiveTargetSizeOk} label="Interaction target size" />
+            </div>
+
+            {/* Dimension bars */}
+            <div className="space-y-2 pt-1">
+              <DiagBar label="Hierarchy"  value={metrics.hierarchyScore} />
+              <DiagBar label="Whitespace" value={metrics.whitespaceScore} />
+              <DiagBar label="Overflow"   value={100 - Math.min(100, metrics.overflowCount * 25)} invert />
             </div>
           </div>
 
-          {/* Warnings Panel */}
+          {/* Warnings */}
           {warnings.length > 0 && (
-            <div className="p-5 bg-yellow-500/5">
-              <h3 className="text-xs font-semibold text-yellow-500/80 mb-3 uppercase tracking-wider flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" /> Warnings
-              </h3>
-              <div className="space-y-2">
-                {warnings.map((w, i) => (
-                  <div key={i} className="text-xs text-yellow-200/70 bg-yellow-500/10 p-2 rounded flex gap-2 items-start">
-                    <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    <span>{w.message}</span>
-                  </div>
-                ))}
+            <div className="p-4 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[10px] text-yellow-500/80 font-semibold uppercase tracking-widest mb-2">
+                <AlertTriangle className="w-3 h-3" /> Warnings ({warnings.length})
               </div>
+              {warnings.map((w, i) => (
+                <div key={i} className="flex gap-2 text-[11px] text-yellow-200/60 bg-yellow-500/8 px-2.5 py-1.5 rounded">
+                  <Info className="w-3 h-3 shrink-0 mt-0.5 text-yellow-400" />
+                  <span>{w.message}</span>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* Tools */}
-          <div className="p-5">
-             <button
-              onClick={toggleConstraints}
-              className={cn(
-                "w-full py-2 px-4 rounded text-sm font-medium transition-colors border",
-                showConstraints 
-                  ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/50 hover:bg-indigo-500/30" 
-                  : "bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700"
-              )}
-            >
-              {showConstraints ? 'Hide Constraints' : 'Show Constraints'}
-            </button>
+          {/* Visibility toggles */}
+          <div className="p-4 space-y-1.5">
+            <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold mb-2">Overlays</div>
+            <ToggleRow label="Safe Zone"        on={showSafeZone}         toggle={toggleSafeZone} />
+            <ToggleRow label="Constraints"      on={showConstraints}      toggle={toggleConstraints} />
+            <ToggleRow label="Focal Point"      on={showFocalPoint}       toggle={toggleFocalPoint} />
+            <ToggleRow label="Bounding Boxes"   on={showBoundingBoxes}    toggle={toggleBoundingBoxes} />
+            <ToggleRow label="Interaction Zones" on={showInteractionZones} toggle={toggleInteractionZones} />
           </div>
         </>
       )}
 
-      {/* Selected Element */}
+      {/* Selected element */}
       {selectedElement && (
-        <div className="p-5 flex flex-col gap-5">
+        <div className="p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Element</span>
+              <div className="text-base font-bold text-zinc-100 capitalize">{selectedElement.label}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              {selectedElement.hidden && <span className="text-[9px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-400 uppercase tracking-wider">HIDDEN</span>}
+              {selectedElement.locked && <span className="text-[9px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-400 uppercase tracking-wider">LOCKED</span>}
+            </div>
+          </div>
+
+          {/* Properties grid */}
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <PropBox label="Position" value={`${Math.round(selectedElement.x)}, ${Math.round(selectedElement.y)}`} />
+            <PropBox label="Size"     value={`${Math.round(selectedElement.width)} × ${Math.round(selectedElement.height)}`} />
+            <PropBox label="Visual Priority"      value={`${selectedElement.visualPriority}`} />
+            <PropBox label="Interaction Priority" value={`${selectedElement.interactionPriority}`} />
+            <PropBox label="Min Size" value={`${selectedElement.minWidth} × ${selectedElement.minHeight}`} />
+            <PropBox label="Type"     value={selectedElement.type} />
+          </div>
+
+          {/* Behaviors */}
           <div>
-            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Selected Element</h3>
-            <div className="text-lg font-bold text-zinc-100 flex items-center justify-between">
-              <span className="capitalize">{selectedElement.type}</span>
-              {selectedElement.hidden && <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">HIDDEN</span>}
-            </div>
-          </div>
-
-          {/* Properties editor */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-zinc-400">Visibility</span>
-              <button 
-                onClick={() => updateElement(selectedElement.id, { hidden: !selectedElement.hidden })}
-                className="text-xs bg-zinc-800 hover:bg-zinc-700 px-2 py-1 rounded"
-              >
-                {selectedElement.hidden ? 'Show' : 'Hide'}
-              </button>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-zinc-400">Lock State</span>
-              <button 
-                onClick={() => updateElement(selectedElement.id, { locked: !selectedElement.locked })}
-                className={cn("text-xs px-2 py-1 rounded", selectedElement.locked ? "bg-indigo-500/20 text-indigo-300" : "bg-zinc-800 hover:bg-zinc-700")}
-              >
-                {selectedElement.locked ? 'Locked' : 'Unlocked'}
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="bg-zinc-900 p-2 rounded border border-zinc-800">
-              <span className="text-zinc-500 block text-[10px] uppercase mb-0.5">Dimensions</span>
-              <span className="font-mono">{Math.round(selectedElement.width)} × {Math.round(selectedElement.height)}</span>
-            </div>
-            <div className="bg-zinc-900 p-2 rounded border border-zinc-800">
-              <span className="text-zinc-500 block text-[10px] uppercase mb-0.5">Position</span>
-              <span className="font-mono">{Math.round(selectedElement.x)}, {Math.round(selectedElement.y)}</span>
-            </div>
-            <div className="bg-zinc-900 p-2 rounded border border-zinc-800">
-              <span className="text-zinc-500 block text-[10px] uppercase mb-0.5">Priority</span>
-              <span className="font-mono">{selectedElement.priority} / 10</span>
-            </div>
-            <div className="bg-zinc-900 p-2 rounded border border-zinc-800">
-              <span className="text-zinc-500 block text-[10px] uppercase mb-0.5">Behaviors</span>
-              <span className="text-[10px] capitalize leading-tight block">{selectedElement.behavior.join(', ')}</span>
-            </div>
-          </div>
-
-          {/* Decision Trace */}
-          <div className="mt-2">
-            <h3 className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3">Decision Trace</h3>
-            {elementDecisions.length === 0 ? (
-              <p className="text-xs text-zinc-500 italic">No transformations applied in this pass.</p>
+            <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1.5">Surface Behaviors</div>
+            {selectedElement.responsiveBehavior ? (
+              <div className="space-y-1">
+                {(Object.entries(selectedElement.responsiveBehavior) as [string, string][]).map(([surf, beh]) => (
+                  <div key={surf} className="flex items-center justify-between text-[11px]">
+                    <span className="text-zinc-500 capitalize">{surf}</span>
+                    <span className={cn('font-mono px-1.5 py-0.5 rounded text-[10px]',
+                      beh === 'hide' ? 'text-red-400 bg-red-500/10' :
+                      beh === 'preserve' ? 'text-emerald-400 bg-emerald-500/10' :
+                      'text-indigo-400 bg-indigo-500/10'
+                    )}>{beh}</span>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <div className="relative border-l border-zinc-800 ml-2 pl-4 py-1 space-y-4">
+              <div className="flex flex-wrap gap-1">
+                {selectedElement.behavior.map(b => (
+                  <span key={b} className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">{b}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quick actions */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => updateElement(selectedElement.id, { hidden: !selectedElement.hidden })}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] font-medium transition-colors"
+            >
+              {selectedElement.hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              {selectedElement.hidden ? 'Show' : 'Hide'}
+            </button>
+            <button
+              onClick={() => updateElement(selectedElement.id, { locked: !selectedElement.locked })}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-[11px] font-medium transition-colors',
+                selectedElement.locked ? 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+              )}
+            >
+              {selectedElement.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+              {selectedElement.locked ? 'Locked' : 'Lock'}
+            </button>
+          </div>
+
+          {/* Decision trace */}
+          <div>
+            <div className="text-[10px] text-indigo-400 uppercase tracking-widest font-semibold mb-2">Decision Trace</div>
+            {elementDecisions.length === 0 ? (
+              <p className="text-[11px] text-zinc-600 italic">No transformations applied for this surface.</p>
+            ) : (
+              <div className="relative ml-2 pl-3 border-l border-zinc-800 space-y-3">
                 {elementDecisions.map((d, i) => (
                   <div key={i} className="relative">
-                    <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-zinc-800 border-2 border-indigo-500" />
-                    <div className="text-[10px] text-zinc-500 font-mono mb-0.5">
+                    <div className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-full bg-zinc-900 border border-indigo-500" />
+                    <div className="text-[9px] font-mono text-zinc-600 mb-0.5">
                       {String(d.sequence).padStart(2, '0')} — {d.reason}
                     </div>
-                    <div className="text-xs text-zinc-200">
-                      {d.action}
-                    </div>
+                    <div className="text-[11px] text-zinc-200 font-medium">{d.action}</div>
+                    {d.confidence !== undefined && (
+                      <div className="text-[9px] text-zinc-600 mt-0.5 flex items-center gap-2">
+                        Constraint confidence: {(d.confidence * 100).toFixed(0)}%
+                        {d.deltaX !== undefined && Math.abs(d.deltaX) > 0.5 && <span className="text-zinc-500">ΔX {d.deltaX > 0 ? '+' : ''}{Math.round(d.deltaX)}px</span>}
+                        {d.deltaY !== undefined && Math.abs(d.deltaY) > 0.5 && <span className="text-zinc-500">ΔY {d.deltaY > 0 ? '+' : ''}{Math.round(d.deltaY)}px</span>}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
-          
+
           <button
-              onClick={() => useStore.getState().selectElement(null)}
-              className="mt-4 w-full py-1.5 px-4 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-            >
-              Clear Selection
-            </button>
+            onClick={() => selectElement(null)}
+            className="w-full py-1.5 rounded text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+          >
+            Clear Selection
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function MetricRow({ pass, label }: { pass: boolean, label: string }) {
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function Metric({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <div className="flex items-center gap-3">
-      {pass ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
-      <span className={cn("text-zinc-300", !pass && "text-zinc-400")}>{label}</span>
+    <div className="flex items-center gap-2 text-[12px]">
+      {ok ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+           : <XCircle      className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+      <span className={cn('text-zinc-400', ok && 'text-zinc-300')}>{label}</span>
     </div>
+  );
+}
+
+function DiagBar({ label, value, invert = false }: { label: string; value: number; invert?: boolean }) {
+  const pct = Math.max(0, Math.min(100, value));
+  const color = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <span className="text-zinc-500 w-20 shrink-0">{label}</span>
+      <div className="flex-1 h-1 bg-zinc-800 rounded-full overflow-hidden">
+        <div className={cn('h-full rounded-full transition-all duration-500', color)} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="font-mono text-zinc-500 w-8 text-right">{Math.round(pct)}</span>
+    </div>
+  );
+}
+
+function PropBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded p-2">
+      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-0.5">{label}</div>
+      <div className="font-mono text-zinc-300 text-[11px] truncate">{value}</div>
+    </div>
+  );
+}
+
+function ToggleRow({ label, on, toggle }: { label: string; on: boolean; toggle: () => void }) {
+  return (
+    <button onClick={toggle} className="w-full flex items-center justify-between py-1 text-[12px] text-zinc-400 hover:text-zinc-200 transition-colors">
+      <span>{label}</span>
+      <div className={cn('w-8 h-4 rounded-full transition-colors relative', on ? 'bg-indigo-500' : 'bg-zinc-700')}>
+        <div className={cn('absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all', on ? 'left-4' : 'left-0.5')} />
+      </div>
+    </button>
   );
 }

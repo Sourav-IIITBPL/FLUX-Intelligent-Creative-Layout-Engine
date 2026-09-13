@@ -3,22 +3,35 @@
 @tailwind utilities;
 
 @layer base {
+  * { box-sizing: border-box; }
   body {
-    @apply bg-zinc-950 text-zinc-100 antialiased overflow-hidden selection:bg-indigo-500/30;
+    @apply bg-zinc-950 text-zinc-300 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
   }
+  ::selection { @apply bg-indigo-500/30 text-white; }
 }
 
-/* Custom scrollbar for dark theme */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-zinc-700 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-zinc-500; }
+
+/* Range slider */
+input[type='range'] {
+  @apply w-full h-1 rounded-full appearance-none bg-zinc-800 outline-none cursor-pointer;
 }
-::-webkit-scrollbar-track {
-  @apply bg-zinc-900;
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  @apply w-3.5 h-3.5 rounded-full bg-indigo-500 border-2 border-zinc-900 shadow-lg;
 }
-::-webkit-scrollbar-thumb {
-  @apply bg-zinc-700 rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-zinc-600;
-}
+input[type='range']::-webkit-slider-thumb:hover { @apply bg-indigo-400; }
+
+/* Canvas element hover */
+.canvas-element { transition: box-shadow 0.15s ease; }
+.canvas-element:hover { box-shadow: 0 0 0 1px rgba(99,102,241,0.5); }
+
+/* Pulse animation */
+@keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.animate-pulse-slow { animation: pulse-slow 3s ease-in-out infinite; }

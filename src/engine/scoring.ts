@@ -1,5 +1,5 @@
-import { Collision, CreativeElement, EngineWeights, LayoutMetrics, LayoutResult, Surface } from './types';
-import { checkCollisions, getSafeZone, isOutOfBounds } from './collision';
+import { Collision, CreativeElement, EngineWeights, LayoutMetrics, Surface } from './types';
+import { getSafeZone, isOutOfBounds } from './collision';
 
 export function calculateScore(
   elements: CreativeElement[],
@@ -8,7 +8,6 @@ export function calculateScore(
   collisions: Collision[]
 ): { score: number; metrics: LayoutMetrics } {
   let score = 100;
-  
   const safeZone = getSafeZone(surface);
   let safeZoneCompliant = true;
   let ctaVisible = false;
@@ -16,59 +15,46 @@ export function calculateScore(
   let interactiveTargetSizeOk = true;
   let textReadabilityOk = true;
 
-  const visibleElements = elements.filter(e => !e.hidden);
+  const visible = elements.filter(e => !e.hidden);
 
-  // 1. Penalize for collisions
-  if (collisions.length > 0) {
-    const errorCollisions = collisions.filter(c => c.severity === 'error');
-    score -= collisions.length * weights.collisionPenalty + errorCollisions.length * (weights.collisionPenalty * 2);
-  }
+  // 1. Collision penalty — weighted by severity
+  const errorColls = collisions.filter(c => c.severity === 'error');
+  score -= collisions.length * weights.collisionPenalty * 2;
+  score -= errorColls.length * weights.collisionPenalty * 3;
 
   // 2. Safe zone compliance
-  for (const el of visibleElements) {
+  for (const el of visible) {
     if (el.type !== 'decorative' && isOutOfBounds(el, safeZone)) {
       safeZoneCompliant = false;
       score -= weights.safeZone * 5;
     }
-    
-    // Check minimum dimensions for text readability
-    if (el.type === 'headline' || el.type === 'subtitle') {
-      if (el.width < el.minWidth || el.height < el.minHeight) {
-        textReadabilityOk = false;
-        score -= weights.priority * 5;
-      }
+    if ((el.type === 'headline' || el.type === 'subtitle') &&
+        (el.width < el.minWidth || el.height < el.minHeight)) {
+      textReadabilityOk = false;
+      score -= weights.priority * 4;
     }
   }
 
-  // 3. CTA Visibility
+  // 3. CTA visibility + interactive target size
   const cta = elements.find(e => e.type === 'cta');
   if (cta) {
-    ctaVisible = !cta.hidden && !isOutOfBounds(cta, { x: 0, y: 0, width: surface.width, height: surface.height });
-    if (!ctaVisible) {
-      score -= weights.ctaPreservation * 10;
-    }
-    // Interactive target size
+    ctaVisible = !cta.hidden &&
+      !isOutOfBounds(cta, { x: 0, y: 0, width: surface.width, height: surface.height });
+    if (!ctaVisible) score -= weights.ctaPreservation * 10;
     if (ctaVisible && (cta.width < 44 || cta.height < 44)) {
       interactiveTargetSizeOk = false;
-      score -= weights.priority * 2;
+      score -= weights.interaction * 3;
     }
   }
 
-  // 4. Product focal point
+  // 4. Focal point preservation
   const product = elements.find(e => e.type === 'product');
-  if (product && product.focalPoint) {
-    // Check if any element overlaps the focal point
-    const focalPointAbs = {
-      x: product.x + product.focalPoint.x,
-      y: product.y + product.focalPoint.y,
-    };
-    
-    for (const el of visibleElements) {
+  if (product?.focalPoint) {
+    const fx = product.x + product.focalPoint.x;
+    const fy = product.y + product.focalPoint.y;
+    for (const el of visible) {
       if (el.id !== product.id && el.type !== 'decorative') {
-        if (
-          focalPointAbs.x >= el.x && focalPointAbs.x <= el.x + el.width &&
-          focalPointAbs.y >= el.y && focalPointAbs.y <= el.y + el.height
-        ) {
+        if (fx >= el.x && fx <= el.x + el.width && fy >= el.y && fy <= el.y + el.height) {
           productFocalPointPreserved = false;
           score -= weights.focalPoint * 8;
           break;
@@ -77,7 +63,30 @@ export function calculateScore(
     }
   }
 
-  // Cap score between 0 and 100
+  // 5. Hierarchy score — high visual-priority elements should be visible
+  let hierarchyScore = 100;
+  const highPri = elements.filter(e => e.visualPriority > 70);
+  const hiddenHighPri = highPri.filter(e => e.hidden);
+  hierarchyScore -= hiddenHighPri.length * 20;
+  score -= (100 - hierarchyScore) * weights.hierarchy * 0.1;
+
+  // 6. Whitespace balance — occupancy 35–75% is ideal
+  const totalArea = surface.width * surface.height;
+  const occupiedArea = visible.reduce((acc, el) => acc + el.width * el.height, 0);
+  const occupancy = Math.min(1, occupiedArea / totalArea);
+  const idealMin = 0.35, idealMax = 0.75;
+  const whitespaceScore = (occupancy >= idealMin && occupancy <= idealMax)
+    ? 100
+    : Math.max(0, 100 - Math.abs(occupancy - (idealMin + idealMax) / 2) * 200);
+  score -= (100 - whitespaceScore) * weights.whitespace * 0.08;
+
+  // 7. Overflow penalty
+  const overflowCount = visible.filter(el =>
+    el.type !== 'decorative' &&
+    isOutOfBounds(el, { x: 0, y: 0, width: surface.width, height: surface.height })
+  ).length;
+  score -= overflowCount * 6;
+
   score = Math.max(0, Math.min(100, Math.round(score)));
 
   return {
@@ -88,6 +97,9 @@ export function calculateScore(
       safeZoneCompliant,
       interactiveTargetSizeOk,
       textReadabilityOk,
-    }
+      hierarchyScore: Math.max(0, hierarchyScore),
+      whitespaceScore: Math.round(whitespaceScore),
+      overflowCount,
+    },
   };
 }

@@ -1,12 +1,7 @@
 import { Bounds, Collision, CreativeElement, Surface } from './types';
 
 export function getBounds(el: CreativeElement): Bounds {
-  return {
-    x: el.x,
-    y: el.y,
-    width: el.width,
-    height: el.height,
-  };
+  return { x: el.x, y: el.y, width: el.width, height: el.height };
 }
 
 export function detectIntersection(b1: Bounds, b2: Bounds): boolean {
@@ -26,15 +21,13 @@ export function calculateOverlapArea(b1: Bounds, b2: Bounds): number {
 
 export function checkCollisions(elements: CreativeElement[]): Collision[] {
   const collisions: Collision[] = [];
-  const visibleElements = elements.filter(e => !e.hidden);
+  const visible = elements.filter(e => !e.hidden);
 
-  for (let i = 0; i < visibleElements.length; i++) {
-    for (let j = i + 1; j < visibleElements.length; j++) {
-      const e1 = visibleElements[i];
-      const e2 = visibleElements[j];
-
-      // Exclude decorative elements from critical collisions if they are behind (we can simplify for now)
-      // Backgrounds/decorative can overlap. Let's ignore decorative collisions for simplicity unless specified.
+  for (let i = 0; i < visible.length; i++) {
+    for (let j = i + 1; j < visible.length; j++) {
+      const e1 = visible[i];
+      const e2 = visible[j];
+      // Decoratives are background — skip collision for them
       if (e1.type === 'decorative' || e2.type === 'decorative') continue;
 
       const b1 = getBounds(e1);
@@ -45,26 +38,25 @@ export function checkCollisions(elements: CreativeElement[]): Collision[] {
         collisions.push({
           elementId1: e1.id,
           elementId2: e2.id,
-          severity: area > (b1.width * b1.height * 0.1) ? 'error' : 'warning',
+          severity: area > b1.width * b1.height * 0.1 ? 'error' : 'warning',
           overlapArea: area,
         });
       }
     }
   }
-
   return collisions;
 }
 
-export const SAFE_ZONE_PADDING = {
+export const SAFE_ZONE_PADDING: Record<string, number> = {
   desktop: 60,
-  tablet: 40,
-  mobile: 24,
-  story: 32,
-  square: 48,
+  tablet:  40,
+  mobile:  24,
+  story:   32,
+  square:  48,
 };
 
 export function getSafeZone(surface: Surface): Bounds {
-  const padding = SAFE_ZONE_PADDING[surface.type] || 24;
+  const padding = SAFE_ZONE_PADDING[surface.type] ?? 24;
   return {
     x: padding,
     y: padding,
